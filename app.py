@@ -5,7 +5,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-cred = credentials.Certificate("\cred file\cred_file.json")
+cred = credentials.Certificate("D:\Tonkla\cred file\cred_file.json")
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://final-project-expense-tracker-default-rtdb.asia-southeast1.firebasedatabase.app'
 })
