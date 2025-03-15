@@ -3,19 +3,43 @@ import firebase_admin
 from firebase_admin import credentials, db
 from datetime import datetime
 import os
+import json
 
 app = Flask(__name__)
 
-# ตรวจสอบว่า Firebase ถูก initialize หรือยัง
+# ตรวจสอบว่ามี environment variable หรือไม่
+if os.environ.get('FIREBASE_CREDENTIALS'):
+    # สำหรับ Production environment (Render)
+    try:
+        cred_dict = json.loads(os.environ.get('FIREBASE_CREDENTIALS'))
+        cred = credentials.Certificate(cred_dict)
+        print("Using credentials from environment variable")
+    except Exception as e:
+        print(f"Error loading credentials from environment: {str(e)}")
+        raise e
+else:
+    # สำหรับ Local development
+    try:
+        # ใช้เส้นทางที่แน่นอนมากขึ้น
+        base_dir = os.path.abspath(os.path.dirname(__file__))
+        cred_path = os.path.join(base_dir, "cred_file.json")
+        print(f"Looking for credentials at: {cred_path}")
+        
+        if not os.path.exists(cred_path):
+            raise FileNotFoundError(f"Credential file '{cred_path}' not found!")
+        
+        cred = credentials.Certificate(cred_path)
+        print("Using credentials from file")
+    except Exception as e:
+        print(f"Error loading credentials from file: {str(e)}")
+        raise e
+
+# Initialize Firebase
 if not firebase_admin._apps:
-    cred_path = "cred_file.json"
-    if not os.path.exists(cred_path):
-        raise FileNotFoundError(f"Credential file '{cred_path}' not found!")
-    
-    cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred, {
         'databaseURL': 'https://final-project-expense-tracker-default-rtdb.asia-southeast1.firebasedatabase.app'
     })
+    print("Firebase initialized successfully")
 
 # กำหนด Reference
 ref = db.reference('transactions')
@@ -36,6 +60,7 @@ def get_transactions():
         transactions = ref.get()
         return jsonify(transactions if transactions else {})
     except Exception as e:
+        print(f"Error getting transactions: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # API: เพิ่ม transaction ใหม่
@@ -54,6 +79,7 @@ def add_transaction():
         new_ref = ref.push(new_transaction)
         return jsonify({'id': new_ref.key}), 201
     except Exception as e:
+        print(f"Error adding transaction: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # API: ลบ transaction
@@ -63,6 +89,7 @@ def delete_transaction(transaction_id):
         ref.child(transaction_id).delete()
         return jsonify({'message': 'Transaction deleted successfully'}), 200
     except Exception as e:
+        print(f"Error deleting transaction: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # API: รีเซ็ต transactions ทั้งหมด
@@ -72,6 +99,7 @@ def reset_transactions():
         ref.delete()
         return jsonify({'message': 'All transactions reset successfully'}), 200
     except Exception as e:
+        print(f"Error resetting transactions: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # API: บันทึก summary
@@ -88,6 +116,7 @@ def save_summary_api():
         summary_ref.set(summary_data)
         return jsonify({'message': 'Summary saved successfully'}), 200
     except Exception as e:
+        print(f"Error saving summary: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # API: ดึงข้อมูล summary
@@ -102,6 +131,7 @@ def get_summary():
             'updated_at': datetime.now().isoformat()
         })
     except Exception as e:
+        print(f"Error getting summary: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
