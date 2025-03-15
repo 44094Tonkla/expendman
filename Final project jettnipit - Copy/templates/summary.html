@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตารางรายรับรายจ่าย</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-table"></i> ตารางรายรับรายจ่าย</h1>
+        
+        <div class="filter-section">
+            <input type="text" id="searchInput" placeholder="ค้นหา..." class="search-input">
+            <select id="categoryFilter">
+                <option value="all">ทุกหมวดหมู่</option>
+                <option value="salary">เงินเดือน</option>
+                <option value="bonus">โบนัส</option>
+                <option value="food">อาหาร</option>
+                <option value="transport">การเดินทาง</option>
+                <option value="shopping">ช้อปปิ้ง</option>
+                <option value="other">อื่นๆ</option>
+            </select>
+            <input type="month" id="monthFilter">
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>วันที่ <i class="fas fa-sort"></i></th>
+                    <th>หมวดหมู่</th>
+                    <th>รายรับ <i class="fas fa-sort"></i></th>
+                    <th>รายจ่าย <i class="fas fa-sort"></i></th>
+                    <th>ยอดคงเหลือ</th>
+                    <th>บันทึก</th>
+                    <th>จัดการ</th>
+                </tr>
+            </thead>
+            <tbody id="data-table"></tbody>
+        </table>
+
+        <div class="summary-stats">
+            <div class="stat-card">
+                <i class="fas fa-money-bill-wave"></i>
+                <h3>รายรับรวม</h3>
+                <p id="totalIncome">0.00</p>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-shopping-cart"></i>
+                <h3>รายจ่ายรวม</h3>
+                <p id="totalExpense">0.00</p>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-wallet"></i>
+                <h3>ยอดคงเหลือ</h3>
+                <p id="finalBalance">0.00</p>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button onclick="window.location.href='/'" class="secondary-btn">
+                <i class="fas fa-arrow-left"></i> กลับไปหน้าแรก
+            </button>
+            <button onclick="exportToCSV()" class="secondary-btn">
+                <i class="fas fa-file-export"></i> ส่งออก CSV
+            </button>
+            <button id="resetButton" class="danger-btn">
+                <i class="fas fa-trash"></i> รีเซ็ตข้อมูล
+            </button>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='summary.js') }}"></script>
+</body>
+</html>
