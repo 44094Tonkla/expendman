@@ -7,43 +7,54 @@ import json
 
 app = Flask(__name__)
 
-# ตรวจสอบว่ามี environment variable หรือไม่
-if os.environ.get('FIREBASE_CREDENTIALS'):
-    # สำหรับ Production environment (Render)
-    try:
-        cred_dict = json.loads(os.environ.get('FIREBASE_CREDENTIALS'))
-        cred = credentials.Certificate(cred_dict)
-        print("Using credentials from environment variable")
-    except Exception as e:
-        print(f"Error loading credentials from environment: {str(e)}")
-        raise e
-else:
-    # สำหรับ Local development
-    try:
-        # ใช้เส้นทางที่แน่นอนมากขึ้น
-        base_dir = os.path.abspath(os.path.dirname(__file__))
-        cred_path = os.path.join(base_dir, "cred_file.json")
-        print(f"Looking for credentials at: {cred_path}")
-        
+try:
+    print("Initializing Firebase...")
+    # ลองใช้ client_email และ private_key โดยตรงแทนที่จะใช้ไฟล์ credentials
+    # ใช้ได้ทั้งในเครื่องและบน Render
+    
+    # ลองใช้ environment variable ก่อน
+    if os.environ.get('FIREBASE_CLIENT_EMAIL') and os.environ.get('FIREBASE_PRIVATE_KEY'):
+        print("Using environment variables for Firebase credentials")
+        firebase_creds = {
+            "type": "service_account",
+            "project_id": "final-project-expense-tracker",
+            "private_key_id": os.environ.get('FIREBASE_PRIVATE_KEY_ID', ''),
+            "private_key": os.environ.get('FIREBASE_PRIVATE_KEY').replace('\\n', '\n'),
+            "client_email": os.environ.get('FIREBASE_CLIENT_EMAIL'),
+            "client_id": os.environ.get('FIREBASE_CLIENT_ID', ''),
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": os.environ.get('FIREBASE_CLIENT_CERT_URL', '')
+        }
+        cred = credentials.Certificate(firebase_creds)
+    else:
+        # ถ้าไม่มี environment variable ให้ใช้ไฟล์
+        print("Using credentials file")
+        cred_path = "cred_file.json"
         if not os.path.exists(cred_path):
-            raise FileNotFoundError(f"Credential file '{cred_path}' not found!")
-        
+            raise FileNotFoundError(f"Credential file not found at {os.path.abspath(cred_path)}")
         cred = credentials.Certificate(cred_path)
-        print("Using credentials from file")
-    except Exception as e:
-        print(f"Error loading credentials from file: {str(e)}")
-        raise e
-
-# Initialize Firebase
-if not firebase_admin._apps:
+    
+    # initialize Firebase app
     firebase_admin.initialize_app(cred, {
         'databaseURL': 'https://final-project-expense-tracker-default-rtdb.asia-southeast1.firebasedatabase.app'
     })
     print("Firebase initialized successfully")
+except Exception as e:
+    print(f"Error initializing Firebase: {str(e)}")
+    # อย่าขัดจังหวะการรันแอพ แต่ให้แสดงข้อผิดพลาด
+    print("Application will continue but Firebase operations will fail")
 
 # กำหนด Reference
-ref = db.reference('transactions')
-summary_ref = db.reference('summary')
+try:
+    ref = db.reference('transactions')
+    summary_ref = db.reference('summary')
+except Exception as e:
+    print(f"Error setting up database references: {str(e)}")
+    # กำหนดค่าเริ่มต้นเพื่อไม่ให้โปรแกรมหยุดทำงาน
+    ref = None
+    summary_ref = None
 
 @app.route('/')
 def index():
@@ -57,6 +68,8 @@ def summary():
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
     try:
+        if ref is None:
+            return jsonify({'error': 'Firebase not initialized correctly'}), 500
         transactions = ref.get()
         return jsonify(transactions if transactions else {})
     except Exception as e:
@@ -67,6 +80,8 @@ def get_transactions():
 @app.route('/api/transactions', methods=['POST'])
 def add_transaction():
     try:
+        if ref is None:
+            return jsonify({'error': 'Firebase not initialized correctly'}), 500
         data = request.json
         new_transaction = {
             'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
@@ -86,6 +101,8 @@ def add_transaction():
 @app.route('/api/transactions/<transaction_id>', methods=['DELETE'])
 def delete_transaction(transaction_id):
     try:
+        if ref is None:
+            return jsonify({'error': 'Firebase not initialized correctly'}), 500
         ref.child(transaction_id).delete()
         return jsonify({'message': 'Transaction deleted successfully'}), 200
     except Exception as e:
@@ -96,6 +113,8 @@ def delete_transaction(transaction_id):
 @app.route('/api/transactions/reset', methods=['POST'])
 def reset_transactions():
     try:
+        if ref is None:
+            return jsonify({'error': 'Firebase not initialized correctly'}), 500
         ref.delete()
         return jsonify({'message': 'All transactions reset successfully'}), 200
     except Exception as e:
@@ -106,6 +125,8 @@ def reset_transactions():
 @app.route('/api/summary', methods=['POST'])
 def save_summary_api():
     try:
+        if summary_ref is None:
+            return jsonify({'error': 'Firebase not initialized correctly'}), 500
         data = request.json
         summary_data = {
             'income_total': float(data.get('income_total', 0)),
@@ -123,6 +144,8 @@ def save_summary_api():
 @app.route('/api/summary', methods=['GET'])
 def get_summary():
     try:
+        if summary_ref is None:
+            return jsonify({'error': 'Firebase not initialized correctly'}), 500
         summary_data = summary_ref.get()
         return jsonify(summary_data if summary_data else {
             'income_total': 0,
